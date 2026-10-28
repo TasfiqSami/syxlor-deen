@@ -1,0 +1,12 @@
+{
+  "name": "Syxlor Deen — Quran & Reflection",
+  "short_name": "Syxlor Deen",
+  "description": "A calmer space to read, learn, reflect, and grow with the Quran.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f0",
+  "theme_color": "#0f2e25",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
