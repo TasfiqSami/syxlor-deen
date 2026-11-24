@@ -4,6 +4,7 @@ import path from 'node:path';
 import { mkdir, readFile, writeFile, rename, unlink, readdir } from 'node:fs/promises';
 import { createHash, randomBytes, createPublicKey, verify as verifySignature } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { getCookie, sessionForRequest as resolveSessionForRequest } from './src/server/session.js';
 import { createServerClient } from '@quranjs/api/server';
 import { SearchMode } from '@quranjs/api';
 import { demoChapters, demoFatiha, fallbackVerse } from './src/data.js';
@@ -18,6 +19,7 @@ app.use(express.json({ limit: '256kb' }));
 let qfClient;
 const userSessions = new Map();
 const oauthRequests = new Map();
+const sessionForRequest = (req) => resolveSessionForRequest(req, userSessions);
 function configured() {
   return Boolean(process.env.QF_CLIENT_ID && process.env.QF_CLIENT_SECRET);
 }
@@ -176,26 +178,11 @@ function isProductionEnvironment() { return (process.env.QF_ENV || 'prelive').to
 function qfAuthHost() { return isProductionEnvironment() ? 'https://oauth2.quran.foundation' : 'https://prelive-oauth2.quran.foundation'; }
 function qfUserApiHost() { return isProductionEnvironment() ? 'https://apis.quran.foundation' : 'https://apis-prelive.quran.foundation'; }
 function configuredRedirectUri() { return String(process.env.QF_REDIRECT_URI || '').trim(); }
-function getCookie(req, name) {
-  const header = String(req.headers.cookie || '');
-  for (const pair of header.split(';')) {
-    const idx = pair.indexOf('=');
-    if (idx < 0) continue;
-    if (pair.slice(0, idx).trim() === name) return decodeURIComponent(pair.slice(idx + 1).trim());
-  }
-  return '';
-}
 function setCookie(res, name, value, maxAge = 28800) {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   res.append('Set-Cookie', `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
 }
 function clearCookie(res, name) { setCookie(res, name, '', 0); }
-function sessionForRequest(req) {
-  const sid = getCookie(req, 'syxlor_sid');
-  const session = sid ? userSessions.get(sid) : null;
-  if (session && session.expiresAt && session.expiresAt < Date.now()) { userSessions.delete(sid); return null; }
-  return session || null;
-}
 function decodeJwtPart(value) { return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')); }
 async function verifyQfIdToken(idToken, expectedNonce) {
   if (!idToken) throw new Error('The OAuth provider did not return an ID token. Ensure the openid scope is approved.');
